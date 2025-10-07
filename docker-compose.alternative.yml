@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # MongoDB Database - using official mongo image
+  mongodb:
+    image: mongo:6.0
+    container_name: telemetry-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: telemetry_db
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - telemetry-network
+
+  # RabbitMQ Message Broker - using official rabbitmq image
+  rabbitmq:
+    image: rabbitmq:3.11-management
+    container_name: telemetry-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - telemetry-network
+
+  # .NET 8 WebAPI
+  telemetry-api:
+    build:
+      context: ./TelemetryAPI
+      dockerfile: Dockerfile
+    container_name: telemetry-api
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - MongoDb__ConnectionString=mongodb://admin:password@mongodb:27017/telemetry_db?authSource=admin
+      - MongoDb__DatabaseName=telemetry_db
+      - MongoDb__CollectionName=telemetry
+      - RabbitMQ__HostName=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__UserName=guest
+      - RabbitMQ__Password=guest
+      - RabbitMQ__QueueName=telemetry_queue
+    depends_on:
+      - mongodb
+      - rabbitmq
+    networks:
+      - telemetry-network
+
+  # Go Telemetry Simulator
+  telemetry-simulator:
+    build:
+      context: ./telemetry-simulator
+      dockerfile: Dockerfile
+    container_name: telemetry-simulator
+    restart: unless-stopped
+    environment:
+      - API_URL=http://telemetry-api:8080/api/telemetry/ingest
+      - INTERVAL=5s
+    depends_on:
+      - telemetry-api
+    networks:
+      - telemetry-network
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
+
+networks:
+  telemetry-network:
+    driver: bridge
