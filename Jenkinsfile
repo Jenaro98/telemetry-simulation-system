@@ -3,8 +3,6 @@ pipeline {
     
     environment {
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
-        DOTNET_VERSION = '8.0'
-        GO_VERSION = '1.21'
     }
     
     stages {
@@ -15,52 +13,15 @@ pipeline {
             }
         }
         
-        stage('Build .NET API') {
+        stage('Build and Test with Docker Compose') {
             steps {
                 script {
-                    echo 'Building .NET 8 WebAPI using Docker...'
-                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet restore TelemetryAPI/TelemetryAPI.csproj'
-                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet build TelemetryAPI/TelemetryAPI.csproj --configuration Release --no-restore'
-                }
-            }
-        }
-        
-        stage('Test .NET API') {
-            steps {
-                script {
-                    echo 'Running .NET API tests using Docker...'
-                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet test TelemetryAPI.Tests/TelemetryAPI.Tests.csproj --configuration Release --no-build --verbosity normal'
-                }
-            }
-            post {
-                always {
-                    publishTestResults testResultsPattern: '**/TestResults/*.trx'
-                }
-            }
-        }
-        
-        stage('Build Go Simulator') {
-            steps {
-                script {
-                    echo 'Building Go telemetry simulator using Docker...'
-                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src -w /src/telemetry-simulator golang:1.21-alpine sh -c "cd /src/telemetry-simulator && go mod download && go build -o telemetry-simulator main.go"'
-                }
-            }
-        }
-        
-        stage('Build Docker Images') {
-            steps {
-                script {
-                    echo 'Building Docker images...'
+                    echo 'Building and testing with Docker Compose...'
+                    
+                    // Build all services
                     sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} build --no-cache'
-                }
-            }
-        }
-        
-        stage('Integration Tests') {
-            steps {
-                script {
-                    echo 'Starting services for integration tests...'
+                    
+                    // Start services for testing
                     sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} up -d'
                     
                     // Wait for services to be ready
