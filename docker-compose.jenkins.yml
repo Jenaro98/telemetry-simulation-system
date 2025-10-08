@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-ci
+    restart: unless-stopped
+    ports:
+      - "8080:8080"    # Jenkins web UI
+      - "50000:50000"  # Jenkins agent port
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  # Allows Jenkins to run Docker commands
+      - /usr/local/bin/docker:/usr/local/bin/docker  # Docker binary
+    user: root  # Run as root to have Docker permissions
+    networks:
+      - jenkins-network
+
+  # Optional: Jenkins agent for better performance
+  jenkins-agent:
+    image: jenkins/inbound-agent:latest
+    container_name: jenkins-agent
+    restart: unless-stopped
+    environment:
+      - JENKINS_URL=http://jenkins:8080
+      - JENKINS_SECRET=your-secret-here
+      - JENKINS_AGENT_NAME=agent1
+    depends_on:
+      - jenkins
+    networks:
+      - jenkins-network
+
+volumes:
+  jenkins_home:
+
+networks:
+  jenkins-network:
+    driver: bridge
