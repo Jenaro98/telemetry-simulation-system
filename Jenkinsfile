@@ -2,19 +2,19 @@ pipeline {
     agent any
     
     stages {
-        stage('Hello') {
-            steps {
-                echo 'Hello World!'
-                echo 'Pipeline is working!'
-            }
-        }
-        
-        stage('Check Git') {
+        stage('Test System') {
             steps {
                 script {
-                    sh 'pwd'
-                    sh 'ls -la'
-                    sh 'git --version'
+                    echo 'Testing telemetry system...'
+                    
+                    // Check if Docker is available
+                    sh 'docker --version'
+                    
+                    // Check if our services are running
+                    sh 'docker ps'
+                    
+                    // Test if we can access the API
+                    sh 'curl -f http://localhost:5000/api/health || echo "API not accessible"'
                 }
             }
         }
@@ -22,7 +22,7 @@ pipeline {
     
     post {
         always {
-            echo 'Pipeline completed'
+            echo 'Test completed'
         }
     }
 }
