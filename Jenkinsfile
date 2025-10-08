@@ -18,11 +18,9 @@ pipeline {
         stage('Build .NET API') {
             steps {
                 script {
-                    echo 'Building .NET 8 WebAPI...'
-                    dir('TelemetryAPI') {
-                        sh 'dotnet restore'
-                        sh 'dotnet build --configuration Release --no-restore'
-                    }
+                    echo 'Building .NET 8 WebAPI using Docker...'
+                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet restore TelemetryAPI/TelemetryAPI.csproj'
+                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet build TelemetryAPI/TelemetryAPI.csproj --configuration Release --no-restore'
                 }
             }
         }
@@ -30,10 +28,8 @@ pipeline {
         stage('Test .NET API') {
             steps {
                 script {
-                    echo 'Running .NET API tests...'
-                    dir('TelemetryAPI.Tests') {
-                        sh 'dotnet test --configuration Release --no-build --verbosity normal'
-                    }
+                    echo 'Running .NET API tests using Docker...'
+                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src mcr.microsoft.com/dotnet/sdk:8.0 dotnet test TelemetryAPI.Tests/TelemetryAPI.Tests.csproj --configuration Release --no-build --verbosity normal'
                 }
             }
             post {
@@ -46,11 +42,8 @@ pipeline {
         stage('Build Go Simulator') {
             steps {
                 script {
-                    echo 'Building Go telemetry simulator...'
-                    dir('telemetry-simulator') {
-                        sh 'go mod download'
-                        sh 'go build -o telemetry-simulator main.go'
-                    }
+                    echo 'Building Go telemetry simulator using Docker...'
+                    sh 'docker run --rm -v ${WORKSPACE}:/src -w /src -w /src/telemetry-simulator golang:1.21-alpine sh -c "cd /src/telemetry-simulator && go mod download && go build -o telemetry-simulator main.go"'
                 }
             }
         }
